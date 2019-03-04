@@ -1,0 +1,120 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252"><title>Assignment #1: Using Lex</title>
+</head><body><h1>CS 440/540 Spring 2019</h1>
+<h1>Assignment #1: Using Lex:  XML to C</h1>
+<h1>Due:  See blackboard</h1>
+
+The goal of this assignment is to use Lex (flex, jflex) as a source-to-source transformation tool to transform code 
+written in a very simple XML programming language to C.   
+<p>
+NOTE - you will not be parsing the input language.   The output for your
+ tool will not be checked on files that do not meet the specification
+below.    You will be making lots of assumptions based on the fact that 
+the input will be correct.  I've given you some starting code (C and
+Java) to give you an idea what I mean.
+
+</p><h2>Input</h2>
+
+Our XML based programming language only has a few different 
+instructions.  We could add more but this is sufficient for this 
+exercise.
+<ul> <li> function - we can define a function with zero or more parameters (all integers) with an integer return type.
+</li><li> add - includes a "result" and one or more op(erands) which can
+ be variables or constants.   Works like a copy insturction if only one 
+op.  
+</li><li> sub - similar to add
+</li><li> return - includes a single op(erand) that can be a variable constant
+</li><li> call - function call has an optional result and zero or more params
+</li><li> if - standard if/then and if/then/else control flow.   The else clause is optional
+</li></ul> 
+
+An example program that includes all of the
+different instructions is:
+<pre>&lt;function name="mult" param="a" param="b"  &gt;
+&lt;if condition="a&gt;0" &gt;
+        &lt;sub result="x" op="a" op="1" /&gt;
+        &lt;call result="y" name="mult"  param="x" param="b" /&gt;
+        &lt;add result="x" op="b" op="y" /&gt;
+        &lt;return op="x"/&gt;
+        &lt;else/&gt;
+        &lt;return op="0" /&gt;
+&lt;/if&gt;
+&lt;/function&gt;
+</pre>
+
+We are making the following simplifying assumptions
+<ul>
+<li> We are only dealing with ints.
+</li><li> All variable names (except functions) are a single character 
+and are declared globally (see start code) to simplify the problem.
+</li><li> All attributes for an instruction will be in the order given above and spacing will be as shown.
+</li></ul>
+
+<h2>Transforming the Input</h2>
+
+You will be transforming the given input into compilable C.  For example, the mult program above would have output like:
+<pre><font color="red">int a,b,c,d,e,f,g,h,i,j,k,l,m;
+int n,o,p,q,r,s,t,u,v,w,x,y,z; 
+
+int mult(int a, int b) { </font>
+   if (a&gt;0) {
+      x = a - 1 ;
+      y = mult(x,b);
+      x = b + y ;
+      return x;
+   } else {
+      return 0;
+   }
+<font color="red">}</font>
+
+</pre>
+
+Notice that I'm indenting 3 spaces inside a function and three for every
+ if statement.   I will be checking your ouput by compiling it to be 
+sure to check this
+yourself.   I have starting code that transforms the &lt;function ... 
+&gt; instruction already
+and does the global declarations (the part shown in red above).
+
+<h2>Notes</h2>
+Your submitted solution must run on zeus.vse.gmu.edu for credit.  It 
+must use standard tools (flex, gcc, java, etc) available on the system. 
+Yes, I know they are not always the latest version; however, they will 
+work fine for your assignments.
+<br>
+If you are working in C or C++, your tool will, by default, read input from <tt> stdin</tt> and write to <tt>stdout</tt>.  
+To use an input file with your tool, use IO redirection:
+<br><tt>a.out &lt; myfile</tt>
+<p>
+If you are working in Java, the default is to get a file name and read 
+your input from that file.  To run your tool, I should have to type 
+something like:<br>
+<tt>java yourtool myfile</tt>
+
+</p><p>
+</p><h1> Submitting your assignment</h1>
+
+<p>
+Submit a zip or tar file with ALL of your code on Blackboard.  In the 
+submission comment, tell me what language (C, C++, Java) you are using 
+and if 
+you do not include a Makefile, give me complete instructions in a ReadMe
+ file for building your executable.   If the TA can't quickly build your
+ assignment, 
+there will be points deducted.
+</p><p>
+If submitting a tar file, CHECK (and double check) your file to be sure 
+that you have included all needed elements.  If you accidently submit an
+ empty file 
+or miss some file, you will only be allowed to correct this problem if 
+the files in your zeus directory have a timestamp <em>before</em> the due time.
+
+
+
+
+
+
+
+
+
+</p></body></html>

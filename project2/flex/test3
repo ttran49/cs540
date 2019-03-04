@@ -1,0 +1,13 @@
+A --> B A x
+    | C D
+;
+B --> g B
+     | m B
+     |
+;
+C --> s C
+   |  t C
+;
+D --> y B
+   |  w A
+;
