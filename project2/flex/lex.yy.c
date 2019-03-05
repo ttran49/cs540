@@ -1902,6 +1902,7 @@ void error(char *where) {
 }
 
 void match(int token) {
+	//printf("%d", token);
 	if (token == lookahead){
 		if ((lookahead == GOES) || (lookahead == OR))
 			first_trigger = 1;
@@ -1927,19 +1928,27 @@ void rule(struct Terminal *out)
 				esl_trigger = 1;
 			else
 				esl_trigger = 0;
+
+			printf("First(%c) contains First(%c)\n", out->name, character);
 		}
+
+		//third rule and second rule ishh
 		if (follow_trigger){
 			int a = find(character);
-			struct Terminal *temp = get_follow(follow_set);
-			if (temp != NULL){
-				temp->follow = temp->follow | a;
+			// A -> B C
+			// C -> epsilon => follow(B) = follow(B) U follow(A)
+			if (a & (1 << 27)){
+				struct Terminal *temp = get_follow(follow_set);
+				if (temp != NULL){
+					temp->follow = temp->follow | out->follow;
+				}
 			}
+			printf("Follow(%c) = Follow(%c) U Follow(%c)\n",character,character, out->name);
 		}
 
 
 		follow_trigger = 1;
 		follow_set = character;
-		printf("Potential follow -> %c  %d  %c\n", character, follow_trigger, follow_set);
 		match(NT);
 		rule(out);
 	} else if (lookahead == T){
@@ -1948,6 +1957,7 @@ void rule(struct Terminal *out)
 			out->first = out->first | (1 << (character - 97));
 			first_trigger = 0;
 			esl_trigger = 0;
+			printf("First(%c) contains %c\n", out->name, character);
 		}
 		//follow set
 		// FIRST RULE OF FOLLOW
@@ -1956,6 +1966,7 @@ void rule(struct Terminal *out)
 			if (temp != NULL){
 				temp->follow = temp->follow | (1 << (character - 97));
 			}
+			printf("Follow(%c) contains %c\n", follow_set,character);
 			follow_trigger =0;
 			follow_set = 0;
 		}
@@ -1969,6 +1980,7 @@ void rule(struct Terminal *out)
 			out->first = out->first | (1 << 26);
 			first_trigger = 0;
 			esl_trigger = 0;
+			printf("First(%c) contains epsilon\n", out->name);
 		}
 		return;
 	}
@@ -1982,6 +1994,20 @@ void rule(struct Terminal *out)
 void production_body_prime(struct Terminal *out)
 {
 	if (lookahead == OR){
+		//rule 3
+		if (follow_trigger){
+			if (follow_trigger){
+			struct Terminal *temp = get_follow(character);
+			if (temp != NULL){
+				temp->follow = temp->follow | out->follow;
+			}
+			follow_trigger =0;
+			follow_set = 0;
+			printf("Follow(%c) = Follow(%c) U Follow(%c)\n",character,character, out->name);
+
+		}
+		}
+
 		match(OR);
 		follow_trigger = 0;
 		follow_set = 0;
@@ -2017,6 +2043,14 @@ void ending(struct Terminal *out)
 		match(EOL);
 		return;
 	} else if (lookahead == SEMI){
+		if (follow_trigger){
+			struct Terminal *temp = get_follow(character);
+			if (temp != NULL){
+				temp->follow = temp->follow | out->follow;
+			}
+			follow_trigger =0;
+			follow_set = 0;
+		}
 		match(SEMI);
 		match(EOL);
 		return;
@@ -2059,7 +2093,8 @@ void production(struct Terminal *out)
 		follow_trigger = 0;
 		follow_set = 0;
 		production_body(temp);
-		ending(out);
+		ending(temp);
+		//printf("\n");
 	} else{
 		error("production");
 	}
@@ -2068,8 +2103,6 @@ void production(struct Terminal *out)
 //prod_list_prime : production prod_list_prime
 //	****			| ret
 void prod_list_prime(struct Header *header){
-	printf("prod_list_p: ");
-
 	if (lookahead == NT){
 		production(header->start);
 		prod_list_prime(header);
@@ -2084,7 +2117,6 @@ void prod_list_prime(struct Header *header){
 //prod_list : production prod_list_prime
 void prod_list(struct Header *header)
 {
-	printf("prod_list: ");
 	if (lookahead == NT){
 		//create init set name
 		header->start->name = character;
@@ -2125,6 +2157,15 @@ void start()
 void main(){
 	header=malloc(sizeof(struct Header));
 	header->start = NULL;
+
+	/*
+	int i;
+	for (i = 0; i<5; i++){
+		printf("ITERATION #%d",i);
+		start();
+	}
+	*/
+
 	start();
 	print_sets(header);
 }
