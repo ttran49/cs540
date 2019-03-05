@@ -9,9 +9,14 @@
 
 int character=0;
 int esl = 0;
+
 int esl_trigger = 0;
 int first_trigger=0;
+
+int follow_trigger = 0;
+int follow_set = 0;
 int lookahead;
+
 
 struct Terminal
 {
@@ -19,7 +24,7 @@ struct Terminal
 	int first;
 	int follow;
 	struct Terminal *next;
-};
+}Terminal;
 struct Header
 {
 	struct Terminal *start;
@@ -81,18 +86,59 @@ ending : EPSILON SEMI EOL
 
 */
 
-int find(char letter,int first){
+void print_sets(struct Header *header){
+	struct Terminal *temp = header->start;
+
+	while (temp != NULL){
+		printf("First(%c) -> ",temp->name);
+
+		
+		int i;
+		for (i = 0; i < 27; i++)
+		{
+			if (temp->first & (1 << i)){
+				if (i < 26)
+					printf("%c, ", (i+97));
+				else 
+					printf("epsilon, ");
+			}
+		}
+		printf("\n");
+		printf("Follow(%c) -> $, ",temp->name);
+
+		for (i = 0; i < 26; i++)
+		{
+			if (temp->follow & (1 << i)){
+				if (i < 26)
+					printf("%c, ", (i+97));
+			}
+		}
+		printf("\n");
+		temp=temp->next;
+	}
+}
+
+
+int find(char letter){
 	struct Terminal *temp= header->start;
 	while(temp != NULL){
-		if (letter == temp->name && first)
+		if (letter == temp->name)
 			return temp->first;
-		else if (letter == temp->name && !first)
-			return temp->follow;
 		temp = temp->next;
 	}
 	return 0;
 }
 
+struct Terminal *get_follow(int set){
+	struct Terminal *temp= header->start;
+	while(temp != NULL){
+		if (set == temp->name)
+			return temp;
+		temp = temp->next;
+	}
+
+	return NULL;
+}
 
 
 void error(char *where) {
@@ -103,10 +149,9 @@ void error(char *where) {
 }
 
 void match(int token) {
-	printf("%d", token);
 	if (token == lookahead){
 		if ((lookahead == GOES) || (lookahead == OR))
-			first_trigger =1;
+			first_trigger = 1;
 		lookahead = yylex();
 	}
 	else{ 
@@ -120,25 +165,46 @@ void match(int token) {
 void rule(struct Terminal *out)
 {
 	if (lookahead == NT){
-		// captital aka set
+		// FIRST SET
 		if (first_trigger){
-			int a = find(character, 1);
+			int a = find(character);
 			out->first = out->first | a;
 			first_trigger = 0;
 			if (a & (1 << 26))
 				esl_trigger = 1;
 			else
 				esl_trigger = 0;
-		} 
+		}
+		if (follow_trigger){
+			int a = find(character);
+			struct Terminal *temp = get_follow(follow_set);
+			if (temp != NULL){
+				temp->follow = temp->follow | a;
+			}
+		}
+
+
+		follow_trigger = 1;
+		follow_set = character;
+		printf("Potential follow -> %c  %d  %c\n", character, follow_trigger, follow_set);
 		match(NT);
 		rule(out);
 	} else if (lookahead == T){
-
 		//find first set
 		if (first_trigger || esl_trigger){
 			out->first = out->first | (1 << (character - 97));
 			first_trigger = 0;
 			esl_trigger = 0;
+		}
+		//follow set
+		// FIRST RULE OF FOLLOW
+		if (follow_trigger){
+			struct Terminal *temp = get_follow(follow_set);
+			if (temp != NULL){
+				temp->follow = temp->follow | (1 << (character - 97));
+			}
+			follow_trigger =0;
+			follow_set = 0;
 		}
 		match(T);
 		rule(out);
@@ -163,7 +229,11 @@ void rule(struct Terminal *out)
 void production_body_prime(struct Terminal *out)
 {
 	if (lookahead == OR){
+		//rule 3
+		
 		match(OR);
+		follow_trigger = 0;
+		follow_set = 0;
 		rule(out);
 		production_body_prime(out);
 	} else if ((lookahead == 0) || (lookahead == SEMI) ||(lookahead == EPSILON)){
@@ -235,6 +305,8 @@ void production(struct Terminal *out)
 		match(NT);				// 	1
 		match(GOES);			//	3
 		first_trigger = 1;
+		follow_trigger = 0;
+		follow_set = 0;
 		production_body(temp);
 		ending(out);
 	} else{
@@ -245,8 +317,7 @@ void production(struct Terminal *out)
 //prod_list_prime : production prod_list_prime
 //	****			| ret
 void prod_list_prime(struct Header *header){
-	printf("\nprod_list_p: ");
-
+	printf("prod_list_p: ");
 
 	if (lookahead == NT){
 		production(header->start);
@@ -299,28 +370,6 @@ void start()
 	}
 }
 
-
-void print_sets(struct Header *header){
-	struct Terminal *temp = header->start;
-
-	while (temp != NULL){
-		printf("%c -> ",temp->name);
-
-		
-		int i;
-		for (i = 0; i < 27; i++)
-		{
-			if (temp->first & (1 << i)){
-				if (i < 26)
-					printf("%c, ", (i+97));
-				else 
-					printf("epsilon, ");
-			}
-		}
-		printf("\n");
-		temp=temp->next;
-	}
-}
 
 void main(){
 	header=malloc(sizeof(struct Header));

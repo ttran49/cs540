@@ -453,9 +453,14 @@ char *yytext;
 
 int character=0;
 int esl = 0;
+
 int esl_trigger = 0;
 int first_trigger=0;
+
+int follow_trigger = 0;
+int follow_set = 0;
 int lookahead;
+
 
 struct Terminal
 {
@@ -463,7 +468,7 @@ struct Terminal
 	int first;
 	int follow;
 	struct Terminal *next;
-};
+}Terminal;
 struct Header
 {
 	struct Terminal *start;
@@ -472,8 +477,8 @@ struct Header
 struct Header *header = NULL;
 
 
-#line 476 "lex.yy.c"
-#line 477 "lex.yy.c"
+#line 481 "lex.yy.c"
+#line 482 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -690,9 +695,9 @@ YY_DECL
 		}
 
 	{
-#line 35 "untitle.l"
+#line 40 "untitle.l"
 
-#line 696 "lex.yy.c"
+#line 701 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -751,7 +756,7 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 36 "untitle.l"
+#line 41 "untitle.l"
 {	
 			esl=0;
 			character = *yytext;
@@ -760,7 +765,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 41 "untitle.l"
+#line 46 "untitle.l"
 {	
 			esl= 0;
 			character = *yytext;
@@ -769,14 +774,14 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 46 "untitle.l"
+#line 51 "untitle.l"
 {	
 			return GOES;
 			}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 50 "untitle.l"
+#line 55 "untitle.l"
 {	
 			esl = 1;
 			return OR;
@@ -785,13 +790,13 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 55 "untitle.l"
+#line 60 "untitle.l"
 {return SEMI;}
 	YY_BREAK
 case 6:
 /* rule 6 can match eol */
 YY_RULE_SETUP
-#line 57 "untitle.l"
+#line 62 "untitle.l"
 {	if (esl){
 				esl = 0;
 				return EPSILON;
@@ -800,15 +805,15 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 62 "untitle.l"
+#line 67 "untitle.l"
 ;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 64 "untitle.l"
+#line 69 "untitle.l"
 ECHO;
 	YY_BREAK
-#line 812 "lex.yy.c"
+#line 817 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1813,7 +1818,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 64 "untitle.l"
+#line 69 "untitle.l"
 
 
 /*
@@ -1834,18 +1839,59 @@ ending : EPSILON SEMI EOL
 
 */
 
-int find(char letter,int first){
+void print_sets(struct Header *header){
+	struct Terminal *temp = header->start;
+
+	while (temp != NULL){
+		printf("First(%c) -> ",temp->name);
+
+		
+		int i;
+		for (i = 0; i < 27; i++)
+		{
+			if (temp->first & (1 << i)){
+				if (i < 26)
+					printf("%c, ", (i+97));
+				else 
+					printf("epsilon, ");
+			}
+		}
+		printf("\n");
+		printf("Follow(%c) -> $, ",temp->name);
+
+		for (i = 0; i < 26; i++)
+		{
+			if (temp->follow & (1 << i)){
+				if (i < 26)
+					printf("%c, ", (i+97));
+			}
+		}
+		printf("\n");
+		temp=temp->next;
+	}
+}
+
+
+int find(char letter){
 	struct Terminal *temp= header->start;
 	while(temp != NULL){
-		if (letter == temp->name && first)
+		if (letter == temp->name)
 			return temp->first;
-		else if (letter == temp->name && !first)
-			return temp->follow;
 		temp = temp->next;
 	}
 	return 0;
 }
 
+struct Terminal *get_follow(int set){
+	struct Terminal *temp= header->start;
+	while(temp != NULL){
+		if (set == temp->name)
+			return temp;
+		temp = temp->next;
+	}
+
+	return NULL;
+}
 
 
 void error(char *where) {
@@ -1856,10 +1902,9 @@ void error(char *where) {
 }
 
 void match(int token) {
-	printf("%d", token);
 	if (token == lookahead){
 		if ((lookahead == GOES) || (lookahead == OR))
-			first_trigger =1;
+			first_trigger = 1;
 		lookahead = yylex();
 	}
 	else{ 
@@ -1873,25 +1918,46 @@ void match(int token) {
 void rule(struct Terminal *out)
 {
 	if (lookahead == NT){
-		// captital aka set
+		// FIRST SET
 		if (first_trigger){
-			int a = find(character, 1);
+			int a = find(character);
 			out->first = out->first | a;
 			first_trigger = 0;
 			if (a & (1 << 26))
 				esl_trigger = 1;
 			else
 				esl_trigger = 0;
-		} 
+		}
+		if (follow_trigger){
+			int a = find(character);
+			struct Terminal *temp = get_follow(follow_set);
+			if (temp != NULL){
+				temp->follow = temp->follow | a;
+			}
+		}
+
+
+		follow_trigger = 1;
+		follow_set = character;
+		printf("Potential follow -> %c  %d  %c\n", character, follow_trigger, follow_set);
 		match(NT);
 		rule(out);
 	} else if (lookahead == T){
-
 		//find first set
 		if (first_trigger || esl_trigger){
 			out->first = out->first | (1 << (character - 97));
 			first_trigger = 0;
 			esl_trigger = 0;
+		}
+		//follow set
+		// FIRST RULE OF FOLLOW
+		if (follow_trigger){
+			struct Terminal *temp = get_follow(follow_set);
+			if (temp != NULL){
+				temp->follow = temp->follow | (1 << (character - 97));
+			}
+			follow_trigger =0;
+			follow_set = 0;
 		}
 		match(T);
 		rule(out);
@@ -1917,6 +1983,8 @@ void production_body_prime(struct Terminal *out)
 {
 	if (lookahead == OR){
 		match(OR);
+		follow_trigger = 0;
+		follow_set = 0;
 		rule(out);
 		production_body_prime(out);
 	} else if ((lookahead == 0) || (lookahead == SEMI) ||(lookahead == EPSILON)){
@@ -1988,6 +2056,8 @@ void production(struct Terminal *out)
 		match(NT);				// 	1
 		match(GOES);			//	3
 		first_trigger = 1;
+		follow_trigger = 0;
+		follow_set = 0;
 		production_body(temp);
 		ending(out);
 	} else{
@@ -1998,8 +2068,7 @@ void production(struct Terminal *out)
 //prod_list_prime : production prod_list_prime
 //	****			| ret
 void prod_list_prime(struct Header *header){
-	printf("\nprod_list_p: ");
-
+	printf("prod_list_p: ");
 
 	if (lookahead == NT){
 		production(header->start);
@@ -2052,28 +2121,6 @@ void start()
 	}
 }
 
-
-void print_sets(struct Header *header){
-	struct Terminal *temp = header->start;
-
-	while (temp != NULL){
-		printf("%c -> ",temp->name);
-
-		
-		int i;
-		for (i = 0; i < 27; i++)
-		{
-			if (temp->first & (1 << i)){
-				if (i < 26)
-					printf("%c, ", (i+97));
-				else 
-					printf("epsilon, ");
-			}
-		}
-		printf("\n");
-		temp=temp->next;
-	}
-}
 
 void main(){
 	header=malloc(sizeof(struct Header));
